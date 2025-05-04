@@ -5,8 +5,8 @@ from django.contrib.auth.models import User # Use Django's built-in User
 # Client Model
 class Client(models.Model):
     client_name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True) # Automatically set on creation
-    updated_at = models.DateTimeField(auto_now=True)     # Automatically set on update
+    created_at = models.DateTimeField(auto_now_add=True) 
+    updated_at = models.DateTimeField(auto_now=True)    
     created_by = models.ForeignKey(User, related_name='created_clients', on_delete=models.CASCADE)
 
     def __str__(self):
