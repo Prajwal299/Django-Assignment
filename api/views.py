@@ -1,5 +1,6 @@
 # api/views.py
-from rest_framework import generics, viewsets, status
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
@@ -9,19 +10,17 @@ from .serializers import (
     ClientSerializer,
     ClientDetailSerializer,
     ProjectSerializer,
-    ProjectDetailSerializer 
+    ProjectDetailSerializer
 )
 from django.contrib.auth.models import User
 
-
 class ClientViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows clients to be viewed or edited.
+    ViewSet to handle Client CRUD and nested project creation.
     """
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        
         return Client.objects.all().order_by('-created_at')
 
     def get_serializer_class(self):
@@ -32,42 +31,34 @@ class ClientViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
-
-
-class ProjectCreateAPIView(generics.CreateAPIView):
-    """
-    API endpoint to create a project for a specific client.
-    POST /api/clients/<client_pk>/projects/
-    """
-    serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        client_pk = self.kwargs.get('client_pk')
-        client_instance = get_object_or_404(Client, pk=client_pk)
-        serializer.save(client=client_instance, created_by=self.request.user)
-
-    
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    @action(detail=True, methods=['post'], url_path='projects')
+    def create_project(self, request, pk=None):
+        """
+        POST /api/clients/{client_id}/projects/
+        Create a project under a specific client.
+        """
+        client = get_object_or_404(Client, pk=pk)
+        serializer = ProjectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer) 
+        project = serializer.save(client=client, created_by=request.user)
 
-        instance = serializer.instance
-        output_serializer = ProjectDetailSerializer(instance, context=self.get_serializer_context())
-
-        headers = self.get_success_headers(output_serializer.data)
-        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        output_serializer = ProjectDetailSerializer(project, context={'request': request})
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class UserProjectListAPIView(generics.ListAPIView):
+class ProjectViewSet(viewsets.ViewSet):
     """
-    API endpoint to list projects assigned to the logged-in user.
-    GET /api/projects/
+    ViewSet to list all projects assigned to the current user.
     """
-    serializer_class = ProjectDetailSerializer 
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        return user.projects.all().order_by('-created_at') 
+    def list(self, request):
+        """
+        GET /api/projects/
+        List projects assigned to the current user.
+        """
+        user = request.user
+        projects = user.projects.all().order_by('-created_at')
+        serializer = ProjectDetailSerializer(projects, many=True)
+        return Response(serializer.data)
+
