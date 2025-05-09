@@ -7,19 +7,16 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for basic User info"""
     class Meta:
         model = User
-        # Use 'username' as it's the default unique identifier
         fields = ['id', 'username']
 
 
 class ProjectSerializer(serializers.ModelSerializer):
     """Serializer for Project details (less verbose)"""
-    # Display related fields by their string representation or specific fields
     created_by = serializers.StringRelatedField(read_only=True)
-    # Use UserSerializer for nested representation on read, PrimaryKeyRelatedField for write
-    users = UserSerializer(many=True, read_only=True) # For GET requests output
+    users = UserSerializer(many=True, read_only=True) 
     user_ids = serializers.PrimaryKeyRelatedField(
         many=True, write_only=True, queryset=User.objects.all(), source='users'
-    ) # For POST/PUT requests input
+    ) 
 
     class Meta:
         model = Project
@@ -51,7 +48,6 @@ class ClientSerializer(serializers.ModelSerializer):
 class ClientDetailSerializer(serializers.ModelSerializer):
     """Serializer for detailed Client view including projects"""
     created_by = serializers.StringRelatedField(read_only=True)
-    # Nest ProjectSerializer (less verbose version) for the projects list
     projects = ProjectSerializer(many=True, read_only=True)
 
     class Meta:
